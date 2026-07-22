@@ -1548,15 +1548,38 @@ function LoadingScreen({ progress }) {
 }
 
 
+// --- Persistensi sederhana ke localStorage (cukup buat pemakaian pribadi,
+// biar bot yang lagi jalan nggak hilang tiap refresh browser) ---
+const STORAGE_KEY = "bothub:bots-v1";
+
+function loadPersistedBots() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function BotHubApp() {
   const [tab, setTab] = useState("home");
   const [view, setView] = useState(null); // { type: 'botDetail'|'running', data }
-  const [running, setRunning] = useState(initialRunningBots);
-  const [stopped, setStopped] = useState([]);
-  const [completed, setCompleted] = useState([]);
+  const persisted = useRef(loadPersistedBots()).current; // dibaca sekali saat mount
+  const [running, setRunning] = useState(persisted?.running ?? initialRunningBots);
+  const [stopped, setStopped] = useState(persisted?.stopped ?? []);
+  const [completed, setCompleted] = useState(persisted?.completed ?? []);
   const live = useLivePrice("btcusdt"); // dipakai buat sinkronkan mark price/PnL bot yang trade BTC/USDT
   const [bootProgress, setBootProgress] = useState(0);
   const booting = bootProgress < 100;
+
+  // Simpan otomatis ke localStorage tiap kali daftar bot berubah
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ running, stopped, completed }));
+    } catch {
+      // localStorage bisa gagal (mode private/quota penuh) — nggak fatal, cukup dilewati
+    }
+  }, [running, stopped, completed]);
 
   useEffect(() => {
     const start = Date.now();

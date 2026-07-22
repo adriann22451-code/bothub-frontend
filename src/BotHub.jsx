@@ -1183,15 +1183,16 @@ export default function BotHubApp() {
   }
 
   return (
-    <div className="w-full min-h-screen flex items-center justify-center py-6" style={{ background: "#050508" }}>
+    <div className="w-full flex items-center justify-center" style={{ background: "#050508", height: "100dvh" }}>
       <div
-        className="w-full max-w-[400px] h-[860px] flex flex-col overflow-hidden relative"
-        style={{ background: "#1FDD6B", borderRadius: "40px", border: "1px solid #A9714B", boxShadow: "0 40px 100px rgba(0,0,0,0.6)" }}
+        className="w-full max-w-[400px] flex flex-col overflow-hidden relative"
+        style={{ background: "#1FDD6B", height: "100dvh", maxHeight: "900px", borderRadius: "40px", border: "1px solid #A9714B", boxShadow: "0 40px 100px rgba(0,0,0,0.6)" }}
       >
         <style>{`
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
           * { font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
+          html, body { margin: 0; padding: 0; overflow: hidden; }
         `}</style>
         {content}
         {!view && <BottomNav active={tab} setActive={changeTab} />}

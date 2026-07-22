@@ -1471,6 +1471,67 @@ function ProfileScreen() {
    App shell
 --------------------------------------------------- */
 
+function LoadingScreen({ progress }) {
+  const messages = [
+    "Menyambungkan ke data pasar...",
+    "Menyiapkan mesin AI...",
+    "Memuat strategi bot...",
+    "Hampir siap...",
+  ];
+  const msgIndex = Math.min(messages.length - 1, Math.floor((progress / 100) * messages.length));
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden" style={{ background: "#08080D" }}>
+      <div
+        className="absolute rounded-full animate-pulse"
+        style={{ width: 260, height: 260, background: "#7B5CFF", opacity: 0.16, filter: "blur(60px)", top: -60, left: -60 }}
+      />
+      <div
+        className="absolute rounded-full animate-pulse"
+        style={{ width: 260, height: 260, background: "#2DE0A6", opacity: 0.12, filter: "blur(60px)", bottom: -80, right: -60 }}
+      />
+
+      <div className="relative flex items-center justify-center mb-7" style={{ width: 96, height: 96 }}>
+        <div
+          className="absolute inset-0 rounded-full animate-ping"
+          style={{ background: "rgba(123,92,255,0.25)" }}
+        />
+        <div
+          className="absolute inset-0 rounded-full animate-spin"
+          style={{ border: "2px solid transparent", borderTopColor: "#7B5CFF", borderRightColor: "#2DE0A6", animationDuration: "1.4s" }}
+        />
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center relative z-10"
+          style={{ background: "linear-gradient(135deg,#7B5CFF,#5B3FE0)", boxShadow: "0 0 40px rgba(123,92,255,0.55)" }}
+        >
+          <Bot size={30} color="#fff" />
+        </div>
+      </div>
+
+      <h1
+        className="text-[24px] font-bold tracking-wide mb-1"
+        style={{ background: "linear-gradient(90deg,#F1F0F7,#7B5CFF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+      >
+        BotHub
+      </h1>
+      <p className="text-[11px] text-[#6E6E88] mb-9">Automate. Trade. Profit.</p>
+
+      <div className="w-48 h-1.5 rounded-full overflow-hidden relative" style={{ background: "#16161F" }}>
+        <div
+          className="h-full rounded-full transition-all duration-150 ease-out relative"
+          style={{ width: `${progress}%`, background: "linear-gradient(90deg,#7B5CFF,#2DE0A6)" }}
+        >
+          <div
+            className="absolute inset-0 animate-pulse"
+            style={{ background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent)" }}
+          />
+        </div>
+      </div>
+      <p className="text-[10px] text-[#63637C] mt-3 tabular-nums">{messages[msgIndex]}</p>
+    </div>
+  );
+}
+
+
 export default function BotHubApp() {
   const [tab, setTab] = useState("home");
   const [view, setView] = useState(null); // { type: 'botDetail'|'running', data }
@@ -1478,6 +1539,19 @@ export default function BotHubApp() {
   const [stopped, setStopped] = useState([]);
   const [completed, setCompleted] = useState([]);
   const live = useLivePrice("btcusdt"); // dipakai buat sinkronkan mark price/PnL bot yang trade BTC/USDT
+  const [bootProgress, setBootProgress] = useState(0);
+  const booting = bootProgress < 100;
+
+  useEffect(() => {
+    const start = Date.now();
+    const duration = 1800;
+    const id = setInterval(() => {
+      const pct = Math.min(100, Math.round(((Date.now() - start) / duration) * 100));
+      setBootProgress(pct);
+      if (pct >= 100) clearInterval(id);
+    }, 40);
+    return () => clearInterval(id);
+  }, []);
 
   // Setiap ada tick harga baru dari Binance, update mark price & PnL semua posisi
   // BTC/USDT yang lagi jalan (dulu ini cuma di-set sekali waktu bot start, terus diam).
@@ -1629,9 +1703,16 @@ export default function BotHubApp() {
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
           * { font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
           html, body { margin: 0; padding: 0; overflow: hidden; }
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         `}</style>
-        {content}
-        {!view && <BottomNav active={tab} setActive={changeTab} />}
+        {booting ? (
+          <LoadingScreen progress={bootProgress} />
+        ) : (
+          <div className="w-full h-full flex flex-col" style={{ animation: "fadeIn 0.4s ease-out" }}>
+            {content}
+            {!view && <BottomNav active={tab} setActive={changeTab} />}
+          </div>
+        )}
       </div>
     </div>
   );

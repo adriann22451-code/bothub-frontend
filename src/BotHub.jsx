@@ -711,8 +711,11 @@ function HomeScreen({ openBot }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const live = useLivePrice("btcusdt");
+  // Semua bot (kecuali DEX Sniper, yang punya feed sendiri dari backend Solana)
+  // dulu cuma "trend-pro" yang kebagian live.spark — makanya Grid Master, Arbitrage
+  // Bot, dll kelihatan macet. Sekarang semua ikut feed BTC/USDT yang sama.
   const liveBots = bots.map((b) =>
-    b.id === "trend-pro" && live.spark && live.spark.length > 1
+    b.id !== "dex-sniper" && live.spark && live.spark.length > 1
       ? { ...b, spark: live.spark, profit: Number(live.changePct.toFixed(2)) }
       : b
   );
@@ -1505,8 +1508,8 @@ export default function BotHubApp() {
         return {
           ...b,
           positions: newPositions,
-          profit: b.id === "trend-pro" ? Number(totalPnl.toFixed(2)) : b.profit,
-          profitPct: b.id === "trend-pro" && b.invested ? Number(((totalPnl / b.invested) * 100).toFixed(2)) : b.profitPct,
+          profit: b.id !== "dex-sniper" ? Number(totalPnl.toFixed(2)) : b.profit,
+          profitPct: b.id !== "dex-sniper" && b.invested ? Number(((totalPnl / b.invested) * 100).toFixed(2)) : b.profitPct,
         };
       })
     );
@@ -1535,7 +1538,7 @@ export default function BotHubApp() {
       plan: chosenPlan.key,
       spark: new Array(12).fill(10),
       positions:
-        bot.id === "trend-pro" && live.price != null
+        bot.id !== "dex-sniper" && live.price != null
           ? [
               {
                 pair: "BTC/USDT",

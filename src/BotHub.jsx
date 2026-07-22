@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Bell, Search, ChevronLeft, Home, LayoutGrid, Bot, PieChart, User,
-  Star, ChevronRight, Wallet, KeyRound, ShieldCheck, ArrowUpRight, X
+  Star, ChevronRight, Wallet, KeyRound, ShieldCheck, ArrowUpRight, X,
+  TrendingUp, TrendingDown, LineChart
 } from "lucide-react";
 
 /* ---------------------------------------------------
@@ -84,12 +85,63 @@ function useLivePrice(symbol = "btcusdt") {
   return state;
 }
 
+/* Live prices for a watchlist of coins — CoinGecko public API, no key needed */
+const WATCHLIST = [
+  { id: "bitcoin", symbol: "BTC", name: "Bitcoin" },
+  { id: "ethereum", symbol: "ETH", name: "Ethereum" },
+  { id: "binancecoin", symbol: "BNB", name: "BNB" },
+  { id: "solana", symbol: "SOL", name: "Solana" },
+  { id: "ripple", symbol: "XRP", name: "XRP" },
+  { id: "dogecoin", symbol: "DOGE", name: "Dogecoin" },
+  { id: "cardano", symbol: "ADA", name: "Cardano" },
+  { id: "chainlink", symbol: "LINK", name: "Chainlink" },
+];
+
+function useMultiTicker(refreshMs = 20000) {
+  const [tickers, setTickers] = useState({});
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const ids = WATCHLIST.map((c) => c.id).join(",");
+
+    async function fetchPrices() {
+      try {
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        const next = {};
+        WATCHLIST.forEach((c) => {
+          const d = data[c.id];
+          if (d) next[c.id] = { ...c, price: d.usd, changePct: d.usd_24h_change || 0 };
+        });
+        setTickers(next);
+        setConnected(true);
+      } catch {
+        if (!cancelled) setConnected(false);
+      }
+    }
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, refreshMs);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [refreshMs]);
+
+  return { tickers, connected };
+}
+
 const bots = [
   {
     id: "trend-pro",
     name: "AI Trend Pro",
     tag: "SPOT",
     tagColor: "#7B5CFF",
+    live: true,
     blurb: "Follows momentum with AI-timed entries and automatic exits.",
     rating: 4.8,
     reviews: "1.2K",
@@ -211,7 +263,8 @@ const initialRunningBots = [
   {
     id: "trend-pro",
     name: "AI Trend Pro",
-    venue: "Binance · BTC/USDT",
+    live: true,
+    venue: "Binance Testnet · BTC/USDT",
     runtime: "2d 14h 32m",
     profit: 85.62,
     profitPct: 12.45,
@@ -228,39 +281,7 @@ const initialRunningBots = [
         pnl: "+11.16 (+12.45%)",
         up: true,
       },
-      {
-        pair: "ETH/USDT",
-        side: "Long",
-        lev: "10x",
-        size: "0.15 ETH",
-        entry: "3,210.00",
-        mark: "3,360.25",
-        pnl: "+22.53 (+10.52%)",
-        up: true,
-      },
     ],
-  },
-  {
-    id: "grid-master",
-    name: "Grid Master",
-    venue: "Bybit · ETH/USDT",
-    runtime: "1d 08h 11m",
-    profit: 45.33,
-    profitPct: 8.19,
-    invested: 300,
-    spark: [10, 9, 11, 9, 12, 11, 14, 12, 15, 14, 17, 16],
-    positions: [],
-  },
-  {
-    id: "dex-sniper",
-    name: "DEX Sniper Pro",
-    venue: "Solana · JUP/USDT",
-    runtime: "5h 22m",
-    profit: 32.21,
-    profitPct: 15.32,
-    invested: 210,
-    spark: [3, 5, 4, 9, 8, 14, 11, 18, 16, 22, 20, 27],
-    positions: [],
   },
 ];
 
@@ -363,7 +384,7 @@ function BotRow({ bot, onClick }) {
         <Bot size={20} />
       </div>
       <div className="flex-1 min-w-0 relative z-10">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[14px] font-semibold text-[#3B2A1E] truncate">{bot.name}</span>
           <span
             className="text-[9px] font-bold px-1.5 py-[2px] rounded tracking-wide"
@@ -371,6 +392,14 @@ function BotRow({ bot, onClick }) {
           >
             {bot.tag}
           </span>
+          {!bot.live && (
+            <span
+              className="text-[8px] font-bold px-1.5 py-[2px] rounded tracking-wide"
+              style={{ background: "rgba(255,255,255,0.35)", color: "#6B5238", border: "1px dashed #6B5238" }}
+            >
+              SIMULATED
+            </span>
+          )}
         </div>
         <p className="text-[12px] text-[#5A4433] mt-0.5 truncate">{bot.blurb}</p>
         <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#6B5238]">
@@ -394,13 +423,14 @@ function BotRow({ bot, onClick }) {
 function BottomNav({ active, setActive }) {
   const items = [
     { key: "home", label: "Home", icon: Home },
+    { key: "prices", label: "Prices", icon: LineChart },
     { key: "mybots", label: "My Bots", icon: Bot },
     { key: "portfolio", label: "Portfolio", icon: PieChart },
     { key: "profile", label: "Profile", icon: User },
   ];
   return (
     <div
-      className="grid grid-cols-4 px-1 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] shrink-0"
+      className="grid grid-cols-5 px-1 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] shrink-0"
       style={{ background: "#17C660", borderTop: "1px solid #14A852" }}
     >
       {items.map(({ key, label, icon: Icon }) => {
@@ -434,6 +464,62 @@ const sampleNotifications = [
   { title: "Grid Master started a new cycle", time: "1h ago" },
   { title: "Arbitrage Bot found a new spread opportunity", time: "Yesterday" },
 ];
+
+function PricesScreen() {
+  const { tickers, connected } = useMultiTicker();
+  const rows = WATCHLIST.map((c) => tickers[c.id]).filter(Boolean);
+
+  return (
+    <div className="flex-1 overflow-y-auto px-5 pb-6">
+      <div className="flex items-center justify-between pt-4 pb-4">
+        <h1 className="text-[19px] font-bold text-[#F1F0F7]">Prices</h1>
+        {connected && (
+          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-[2px] rounded" style={{ background: "#2DE0A622", color: "#2DE0A6" }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#2DE0A6" }} /> LIVE
+          </span>
+        )}
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-center text-[13px] text-[#63637C] py-16">Menyambungkan ke data harga live...</p>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {rows.map((t) => {
+            const up = t.changePct >= 0;
+            return (
+              <div
+                key={t.id}
+                className="flex items-center justify-between p-3.5 rounded-2xl"
+                style={{ background: "#C68B59", border: "1px solid #A9714B" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-bold" style={{ background: "rgba(255,255,255,0.4)", color: "#3B2A1E" }}>
+                    {t.symbol}
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#3B2A1E]">{t.name}</p>
+                    <p className="text-[11px] text-[#6B5238]">{t.symbol}/USD</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[13px] font-bold text-[#3B2A1E]">
+                    ${t.price >= 1 ? t.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : t.price.toFixed(5)}
+                  </p>
+                  <p className="flex items-center justify-end gap-1 text-[11px] font-semibold" style={{ color: up ? "#1FA97A" : "#D93E5C" }}>
+                    {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                    {up ? "+" : ""}
+                    {t.changePct.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-[10px] text-[#8A8AA3] text-center mt-4">Data dari CoinGecko · update tiap 20 detik</p>
+    </div>
+  );
+}
 
 function HomeScreen({ openBot }) {
   const [notifOpen, setNotifOpen] = useState(false);
@@ -552,6 +638,13 @@ function BotDetailScreen({ bot, onBack, onSubscribe, isRunning }) {
         }
       />
       <div className="px-5">
+        {!bot.live && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4" style={{ background: "#FFB45422", border: "1px dashed #FFB454" }}>
+            <span className="text-[11px] font-semibold" style={{ color: "#FFB454" }}>
+              ⚠ Data simulasi — belum tersambung ke harga/order real
+            </span>
+          </div>
+        )}
         <div className="flex items-center gap-3 mb-4">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
@@ -632,7 +725,7 @@ function BotDetailScreen({ bot, onBack, onSubscribe, isRunning }) {
 function MyBotsScreen({ openRunning, running, stopped, completed, onStop, onRestart, onComplete }) {
   const [tab, setTab] = useState("Running");
   const tabs = ["Running", "Stopped", "Completed"];
-  const list = tab === "Running" ? running : tab === "Stopped" ? stopped : completed;
+  const list = (tab === "Running" ? running : tab === "Stopped" ? stopped : completed).filter((b) => b.live);
   const statusMeta = {
     Running: { label: "RUNNING", bg: "#2DE0A622", color: "#2DE0A6" },
     Stopped: { label: "STOPPED", bg: "#FF5C7A22", color: "#FF5C7A" },
@@ -645,7 +738,7 @@ function MyBotsScreen({ openRunning, running, stopped, completed, onStop, onRest
       <div className="flex gap-2 mb-4">
         {tabs.map((t) => {
           const active = tab === t;
-          const count = t === "Running" ? running.length : t === "Stopped" ? stopped.length : completed.length;
+          const count = t === "Running" ? running.filter((b) => b.live).length : t === "Stopped" ? stopped.filter((b) => b.live).length : completed.filter((b) => b.live).length;
           return (
             <button
               key={t}
@@ -677,9 +770,16 @@ function MyBotsScreen({ openRunning, running, stopped, completed, onStop, onRest
                     <p className="text-[11px] text-[#6E6E88] mt-0.5">{b.venue}</p>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: meta.bg, color: meta.color }}>
-                  {meta.label}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: meta.bg, color: meta.color }}>
+                    {meta.label}
+                  </span>
+                  {!b.live && (
+                    <span className="text-[8px] font-bold px-1.5 py-[2px] rounded" style={{ background: "rgba(255,255,255,0.35)", color: "#6B5238", border: "1px dashed #6B5238" }}>
+                      SIMULATED
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex gap-5">
@@ -980,8 +1080,6 @@ function RunningBotScreen({ bot, onBack, onStop }) {
 }
 
 function PortfolioScreen({ running, stopped, completed }) {
-  const [walletConnected, setWalletConnected] = useState(true);
-  const [apiConnected, setApiConnected] = useState(true);
   const allBots = [...running, ...stopped, ...completed];
   const totalInvested = allBots.reduce((sum, b) => sum + b.invested, 0);
   const totalProfit = allBots.reduce((sum, b) => sum + b.profit, 0);
@@ -996,43 +1094,32 @@ function PortfolioScreen({ running, stopped, completed }) {
           {totalProfit >= 0 ? "+" : ""}
           {totalProfit.toFixed(2)} USDT all-time
         </p>
+        <p className="text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.6)" }}>
+          ⚠ Angka di atas dihitung dari data app, bukan dari saldo testnet Binance beneran
+        </p>
       </div>
       <h2 className="text-[14px] font-semibold text-[#F1F0F7] mb-3">Connections</h2>
       <div className="flex flex-col gap-2.5">
-        <button
-          onClick={() => setWalletConnected((v) => !v)}
-          className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-left"
-          style={{ background: "#C68B59", border: "1px solid #A9714B" }}
-        >
-          <Wallet size={18} color="#7B5CFF" />
+        <div className="flex items-center gap-2 p-3.5 rounded-2xl" style={{ background: "#14141F", border: "1px dashed #2A2A3A" }}>
+          <KeyRound size={18} color="#8A8AA3" />
           <div className="flex-1">
-            <p className="text-[13px] font-medium text-[#F1F0F7]">{walletConnected ? "Wallet connected" : "Connect a wallet"}</p>
-            <p className="text-[11px] text-[#63637C]">{walletConnected ? "MetaMask · Coinbase Wallet" : "Tap to connect"}</p>
+            <p className="text-[13px] font-medium text-[#F1F0F7]">Binance Testnet (via backend)</p>
+            <p className="text-[11px] text-[#8A8AA3]">Dikelola di server Railway, bukan di app ini</p>
           </div>
-          <span
-            className="text-[10px] font-bold px-2 py-1 rounded-lg"
-            style={{ background: walletConnected ? "#2DE0A622" : "#63637C22", color: walletConnected ? "#2DE0A6" : "#63637C" }}
-          >
-            {walletConnected ? "ON" : "OFF"}
+          <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "#2DE0A622", color: "#2DE0A6" }}>
+            ACTIVE
           </span>
-        </button>
-        <button
-          onClick={() => setApiConnected((v) => !v)}
-          className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-left"
-          style={{ background: "#C68B59", border: "1px solid #A9714B" }}
-        >
-          <KeyRound size={18} color="#7B5CFF" />
+        </div>
+        <div className="flex items-center gap-2 p-3.5 rounded-2xl" style={{ background: "#C68B59", border: "1px dashed #A9714B" }}>
+          <Wallet size={18} color="#6B5238" />
           <div className="flex-1">
-            <p className="text-[13px] font-medium text-[#F1F0F7]">{apiConnected ? "Exchange API keys" : "Add an API key"}</p>
-            <p className="text-[11px] text-[#63637C]">{apiConnected ? "Binance · Bybit" : "Tap to add"}</p>
+            <p className="text-[13px] font-medium text-[#3B2A1E]">Wallet connect</p>
+            <p className="text-[11px] text-[#6B5238]">Belum diimplementasi</p>
           </div>
-          <span
-            className="text-[10px] font-bold px-2 py-1 rounded-lg"
-            style={{ background: apiConnected ? "#2DE0A622" : "#63637C22", color: apiConnected ? "#2DE0A6" : "#63637C" }}
-          >
-            {apiConnected ? "ON" : "OFF"}
+          <span className="text-[9px] font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.4)", color: "#6B5238" }}>
+            SIMULATED
           </span>
-        </button>
+        </div>
         <div className="flex items-center gap-2 p-3.5 rounded-2xl mt-1" style={{ color: "#63637C" }}>
           <ShieldCheck size={14} />
           <span className="text-[11px]">Your API keys & private keys are encrypted and stored securely.</span>
@@ -1111,6 +1198,7 @@ export default function BotHubApp() {
     const newEntry = {
       id: bot.id,
       name: bot.name,
+      live: bot.live,
       venue: `${bot.exchanges[0]} · Auto`,
       runtime: "Just started",
       profit: 0,
@@ -1164,6 +1252,8 @@ export default function BotHubApp() {
     content = <RunningBotScreen bot={view.data} onBack={closeView} onStop={stopBot} />;
   } else if (tab === "home") {
     content = <HomeScreen openBot={openBot} />;
+  } else if (tab === "prices") {
+    content = <PricesScreen />;
   } else if (tab === "mybots") {
     content = (
       <MyBotsScreen

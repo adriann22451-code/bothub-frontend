@@ -534,68 +534,83 @@ function BotIconCard({ bot, selected, onToggle }) {
   );
 }
 
-function BotInfoPanel({ bot, onOpen }) {
+function BotInfoPanel({ bot, onOpen, onClose }) {
   const up = bot.profit >= 0;
   const glow = bot.tagColor || "#7B5CFF";
   return (
     <div
-      className="rounded-2xl p-4 mb-5 relative overflow-hidden"
-      style={{ background: "#C68B59", border: `1px solid ${glow}` }}
+      className="fixed inset-0 z-[100] flex items-center justify-center px-6"
+      style={{ background: "rgba(5,5,10,0.72)" }}
+      onClick={onClose}
     >
-      <div className="flex items-center gap-3 mb-3">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: "rgba(255,255,255,0.4)", color: "#3B2A1E" }}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[320px] rounded-2xl p-4 relative"
+        style={{ background: "#C68B59", border: `1px solid ${glow}`, boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center z-10"
+          style={{ background: "rgba(59,42,30,0.15)" }}
         >
-          <Bot size={20} />
+          <X size={15} color="#3B2A1E" />
+        </button>
+
+        <div className="flex items-center gap-3 mb-3 pr-8">
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: "rgba(255,255,255,0.4)", color: "#3B2A1E" }}
+          >
+            <Bot size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[14px] font-bold text-[#3B2A1E] truncate">{bot.name}</span>
+              <span
+                className="shrink-0 text-[9px] font-bold px-1.5 py-[2px] rounded tracking-wide"
+                style={{ background: "rgba(255,255,255,0.45)", color: glow, border: `1px solid ${glow}77` }}
+              >
+                {bot.tag}
+              </span>
+            </div>
+            <p className="flex items-center gap-1 text-[11px] text-[#6B5238] mt-0.5">
+              <Star size={11} className="fill-[#FFB454] text-[#FFB454]" /> {bot.rating} · {bot.users} pengguna
+            </p>
+          </div>
+          <Sparkline data={bot.spark} color={up ? "#2DE0A6" : "#FF5C7A"} w={56} h={24} />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-bold text-[#3B2A1E] truncate">{bot.name}</span>
-            <span
-              className="shrink-0 text-[9px] font-bold px-1.5 py-[2px] rounded tracking-wide"
-              style={{ background: "rgba(255,255,255,0.45)", color: glow, border: `1px solid ${glow}77` }}
-            >
-              {bot.tag}
+
+        <p className="text-[12px] text-[#5A4433] leading-relaxed mb-3 line-clamp-2">{bot.blurb}</p>
+
+        <div
+          className="grid grid-cols-3 rounded-xl overflow-hidden mb-3"
+          style={{ background: "rgba(255,255,255,0.35)" }}
+        >
+          <div className="flex flex-col items-center justify-center py-2 px-1" style={{ borderRight: "1px solid rgba(59,42,30,0.15)" }}>
+            <span className="text-[9px] text-[#6B5238]">Profit</span>
+            <span className="text-[13px] font-bold" style={{ color: up ? "#1FA97A" : "#D93E5C" }}>
+              {up ? "+" : ""}
+              {bot.profit}%
             </span>
           </div>
-          <p className="flex items-center gap-1 text-[11px] text-[#6B5238] mt-0.5">
-            <Star size={11} className="fill-[#FFB454] text-[#FFB454]" /> {bot.rating} · {bot.users} pengguna
-          </p>
+          <div className="flex flex-col items-center justify-center py-2 px-1" style={{ borderRight: "1px solid rgba(59,42,30,0.15)" }}>
+            <span className="text-[9px] text-[#6B5238]">Harga</span>
+            <span className="text-[13px] font-bold text-[#3B2A1E]">${bot.price}/mo</span>
+          </div>
+          <div className="flex flex-col items-center justify-center py-2 px-1">
+            <span className="text-[9px] text-[#6B5238]">Reviews</span>
+            <span className="text-[13px] font-bold text-[#3B2A1E]">{bot.reviews}</span>
+          </div>
         </div>
-        <Sparkline data={bot.spark} color={up ? "#2DE0A6" : "#FF5C7A"} w={56} h={24} />
+
+        <button
+          onClick={onOpen}
+          className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-white"
+          style={{ background: glow }}
+        >
+          Lihat Detail Bot
+        </button>
       </div>
-
-      <p className="text-[12px] text-[#5A4433] leading-relaxed mb-3 line-clamp-2">{bot.blurb}</p>
-
-      <div
-        className="grid grid-cols-3 rounded-xl overflow-hidden mb-3"
-        style={{ background: "rgba(255,255,255,0.35)" }}
-      >
-        <div className="flex flex-col items-center justify-center py-2 px-1" style={{ borderRight: "1px solid rgba(59,42,30,0.15)" }}>
-          <span className="text-[9px] text-[#6B5238]">Profit</span>
-          <span className="text-[13px] font-bold" style={{ color: up ? "#1FA97A" : "#D93E5C" }}>
-            {up ? "+" : ""}
-            {bot.profit}%
-          </span>
-        </div>
-        <div className="flex flex-col items-center justify-center py-2 px-1" style={{ borderRight: "1px solid rgba(59,42,30,0.15)" }}>
-          <span className="text-[9px] text-[#6B5238]">Harga</span>
-          <span className="text-[13px] font-bold text-[#3B2A1E]">${bot.price}/mo</span>
-        </div>
-        <div className="flex flex-col items-center justify-center py-2 px-1">
-          <span className="text-[9px] text-[#6B5238]">Reviews</span>
-          <span className="text-[13px] font-bold text-[#3B2A1E]">{bot.reviews}</span>
-        </div>
-      </div>
-
-      <button
-        onClick={onOpen}
-        className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-white"
-        style={{ background: glow }}
-      >
-        Lihat Detail Bot
-      </button>
     </div>
   );
 }
@@ -811,6 +826,7 @@ function HomeScreen({ openBot }) {
         <BotInfoPanel
           bot={liveBots.find((b) => b.id === selectedId)}
           onOpen={() => openBot(liveBots.find((b) => b.id === selectedId))}
+          onClose={() => setSelectedId(null)}
         />
       )}
     </div>
@@ -831,95 +847,95 @@ function BotDetailScreen({ bot, onBack, onSubscribe, isRunning }) {
     ["Works On", d.market],
   ];
   return (
-    <div className="flex-1 overflow-y-auto pb-6">
+    <div className="flex-1 overflow-y-auto pb-3">
       <TopBar
         title="Bot Detail"
         onBack={onBack}
         right={
-          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "#96623D" }}>
-            <X size={16} color="#D5D5E4" />
+          <button onClick={onBack} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ background: "#96623D" }}>
+            <X size={14} color="#D5D5E4" />
           </button>
         }
       />
       <div className="px-5">
         {!bot.live && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4" style={{ background: "#FFB45422", border: "1px dashed #FFB454" }}>
-            <span className="text-[11px] font-semibold" style={{ color: "#FFB454" }}>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl mb-2.5" style={{ background: "#FFB45422", border: "1px dashed #FFB454" }}>
+            <span className="text-[10px] font-semibold leading-snug" style={{ color: "#FFB454" }}>
               ⚠ Data simulasi — belum tersambung ke harga/order real
             </span>
           </div>
         )}
         {isDex && (
           <div
-            className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl mb-2.5"
             style={{
               background: dex.status.connected ? "#2DE0A622" : "#FFB45422",
               border: `1px dashed ${dex.status.connected ? "#2DE0A6" : "#FFB454"}`,
             }}
           >
-            <span className="text-[11px] font-semibold" style={{ color: dex.status.connected ? "#2DE0A6" : "#FFB454" }}>
+            <span className="text-[10px] font-semibold leading-snug" style={{ color: dex.status.connected ? "#2DE0A6" : "#FFB454" }}>
               {dex.status.connected
                 ? `⚡ Live · Solana Devnet · ${dex.status.balanceSol != null ? dex.status.balanceSol.toFixed(3) + " SOL" : "..."}`
                 : "⚠ Backend belum terhubung — jalankan server DEX Sniper dulu (lihat README)"}
             </span>
           </div>
         )}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-2.5 mb-2.5">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+            className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
             style={{ background: `${bot.tagColor}22`, color: bot.tagColor }}
           >
-            <Bot size={26} />
+            <Bot size={21} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-[17px] font-bold text-[#F1F0F7] truncate">{bot.name}</h2>
+              <h2 className="text-[15px] font-bold text-[#F1F0F7] truncate">{bot.name}</h2>
               <span className="text-[9px] font-bold px-1.5 py-[2px] rounded" style={{ background: `${bot.tagColor}22`, color: bot.tagColor }}>
                 {bot.tag}
               </span>
             </div>
-            <p className="flex items-center gap-1 text-[12px] text-[#8A8AA3] mt-0.5">
-              <Star size={12} className="fill-[#FFB454] text-[#FFB454]" /> {bot.rating} ({bot.reviews} Reviews)
+            <p className="flex items-center gap-1 text-[11px] text-[#8A8AA3] mt-0.5">
+              <Star size={11} className="fill-[#FFB454] text-[#FFB454]" /> {bot.rating} ({bot.reviews} Reviews)
             </p>
           </div>
         </div>
-        <p className="text-[13px] text-[#9C9CB5] leading-relaxed mb-4">{bot.blurb}</p>
+        <p className="text-[12px] text-[#9C9CB5] leading-snug mb-2.5 line-clamp-2">{bot.blurb}</p>
 
-        <div className="flex gap-2 mb-5">
+        <div className="flex gap-2 mb-3">
           {bot.exchanges.map((ex) => (
-            <span key={ex} className="text-[11px] px-3 py-1.5 rounded-lg text-[#4A4438]" style={{ background: "#F2EDE1", border: "1px solid #D8CFB8" }}>
+            <span key={ex} className="text-[10px] px-2.5 py-1 rounded-lg text-[#4A4438]" style={{ background: "#F2EDE1", border: "1px solid #D8CFB8" }}>
               {ex}
             </span>
           ))}
         </div>
 
-        <div className="rounded-2xl p-4 mb-5" style={{ background: "#FAF6EC", border: "1px solid #E4DDCB" }}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[12px] text-[#6B6456]">Profit (30D)</span>
-            <span className="text-[15px] font-bold" style={{ color: "#1FAE7F" }}>+{bot.profit}%</span>
+        <div className="rounded-2xl p-3 mb-3" style={{ background: "#FAF6EC", border: "1px solid #E4DDCB" }}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] text-[#6B6456]">Profit (30D)</span>
+            <span className="text-[14px] font-bold" style={{ color: "#1FAE7F" }}>+{bot.profit}%</span>
           </div>
-          <Sparkline data={bot.spark} color="#1FAE7F" w={300} h={70} />
-          <div className="flex justify-between mt-3 pt-3" style={{ borderTop: "1px solid #E4DDCB" }}>
+          <Sparkline data={bot.spark} color="#1FAE7F" w={300} h={44} />
+          <div className="flex justify-between mt-2 pt-2" style={{ borderTop: "1px solid #E4DDCB" }}>
             <div>
-              <p className="text-[11px] text-[#8A8370]">Max Drawdown</p>
-              <p className="text-[13px] font-semibold text-[#241F33] mt-0.5">{d.drawdown}%</p>
+              <p className="text-[10px] text-[#8A8370]">Max Drawdown</p>
+              <p className="text-[12px] font-semibold text-[#241F33] mt-0.5">{d.drawdown}%</p>
             </div>
             <div>
-              <p className="text-[11px] text-[#8A8370]">Win Rate</p>
-              <p className="text-[13px] font-semibold text-[#241F33] mt-0.5">{d.winRate}%</p>
+              <p className="text-[10px] text-[#8A8370]">Win Rate</p>
+              <p className="text-[12px] font-semibold text-[#241F33] mt-0.5">{d.winRate}%</p>
             </div>
             <div>
-              <p className="text-[11px] text-[#8A8370]">Total Users</p>
-              <p className="text-[13px] font-semibold text-[#241F33] mt-0.5">{bot.users}</p>
+              <p className="text-[10px] text-[#8A8370]">Total Users</p>
+              <p className="text-[12px] font-semibold text-[#241F33] mt-0.5">{bot.users}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl mb-5 divide-y" style={{ background: "#FAF6EC", border: "1px solid #E4DDCB" }}>
+        <div className="rounded-2xl mb-3 divide-y" style={{ background: "#FAF6EC", border: "1px solid #E4DDCB" }}>
           {rows.map(([label, val]) => (
-            <div key={label} className="flex items-center justify-between px-4 py-3" style={{ borderColor: "#E4DDCB" }}>
-              <span className="text-[13px] text-[#6B6456]">{label}</span>
-              <span className="text-[13px] font-medium text-[#241F33]">{val}</span>
+            <div key={label} className="flex items-center justify-between px-3.5 py-2" style={{ borderColor: "#E4DDCB" }}>
+              <span className="text-[12px] text-[#6B6456]">{label}</span>
+              <span className="text-[12px] font-medium text-[#241F33]">{val}</span>
             </div>
           ))}
         </div>
@@ -931,7 +947,7 @@ function BotDetailScreen({ bot, onBack, onSubscribe, isRunning }) {
             setSubscribed(true);
           }}
           disabled={isRunning || subscribed}
-          className="w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white"
+          className="w-full py-3 rounded-2xl text-[13px] font-semibold text-white"
           style={{ background: isRunning || subscribed ? "#2DE0A6" : "linear-gradient(135deg,#7B5CFF,#5B3FE0)" }}
         >
           {isRunning || subscribed ? "Running · View in My Bots" : "Activate Bot"}
@@ -1083,10 +1099,10 @@ function RunningBotScreen({ bot, onBack, onStop }) {
     { pair: "ETH/USDT", side: "Long", result: "+22.53 USDT", time: "1d ago", up: true },
   ];
   return (
-    <div className="flex-1 overflow-y-auto pb-6">
+    <div className="flex-1 overflow-y-auto pb-3">
       <TopBar title={bot.name} onBack={onBack} />
       <div className="px-5">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-2.5">
           <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "#2DE0A622", color: "#2DE0A6" }}>
             RUNNING
           </span>
@@ -1094,7 +1110,7 @@ function RunningBotScreen({ bot, onBack, onStop }) {
         </div>
 
         {isDex ? (
-          <div className="rounded-2xl p-4 mb-4" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+          <div className="rounded-2xl p-3 mb-3" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
             <div className="flex items-center justify-between mb-2">
               <p className="text-[12px] text-[#8A8AA3]">Status Backend</p>
               <span
@@ -1107,13 +1123,13 @@ function RunningBotScreen({ bot, onBack, onStop }) {
             <p className="text-[13px] text-[#3B2A1E] mb-0.5">
               Wallet: <span className="font-mono">{dex.status.walletAddress ? `${dex.status.walletAddress.slice(0, 6)}...${dex.status.walletAddress.slice(-4)}` : "—"}</span>
             </p>
-            <p className="text-[13px] font-semibold text-[#3B2A1E] mb-3">
+            <p className="text-[13px] font-semibold text-[#3B2A1E] mb-2.5">
               Saldo: {dex.status.balanceSol != null ? `${dex.status.balanceSol.toFixed(4)} SOL (devnet)` : "—"}
             </p>
             <button
               onClick={() => dex.setSnipeEnabled(!dex.status.snipeEnabled)}
               disabled={!dex.status.connected}
-              className="w-full py-3 rounded-xl text-[13px] font-semibold"
+              className="w-full py-2.5 rounded-xl text-[13px] font-semibold"
               style={{
                 background: dex.status.snipeEnabled ? "#3A1420" : "#2DE0A6",
                 color: dex.status.snipeEnabled ? "#FF5C7A" : "#0B2E22",
@@ -1124,47 +1140,47 @@ function RunningBotScreen({ bot, onBack, onStop }) {
             </button>
           </div>
         ) : (
-          <div className="rounded-2xl p-4 mb-4" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
-            <p className="text-[12px] text-[#8A8AA3] mb-1">Total Profit</p>
+          <div className="rounded-2xl p-3 mb-3" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+            <p className="text-[11px] text-[#8A8AA3] mb-1">Total Profit</p>
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-[24px] font-bold" style={{ color: "#2DE0A6" }}>
-                  +{bot.profit} <span className="text-[14px] font-medium">USDT</span>
+                <p className="text-[20px] font-bold" style={{ color: "#2DE0A6" }}>
+                  +{bot.profit} <span className="text-[13px] font-medium">USDT</span>
                 </p>
-                <p className="text-[12px] font-medium mt-0.5" style={{ color: "#2DE0A6" }}>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#2DE0A6" }}>
                   (+{bot.profitPct}%)
                 </p>
               </div>
-              <Sparkline data={bot.spark} color="#2DE0A6" w={130} h={50} />
+              <Sparkline data={bot.spark} color="#2DE0A6" w={110} h={38} />
             </div>
           </div>
         )}
 
         {!isDex && (
-        <div className="flex gap-3 mb-5">
-          <div className="flex-1 rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
-            <p className="text-[11px] text-[#63637C]">Invested</p>
-            <p className="text-[14px] font-semibold text-[#F1F0F7] mt-1">{bot.invested} USDT</p>
+        <div className="flex gap-2.5 mb-3">
+          <div className="flex-1 rounded-2xl p-2.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+            <p className="text-[10px] text-[#63637C]">Invested</p>
+            <p className="text-[13px] font-semibold text-[#F1F0F7] mt-0.5">{bot.invested} USDT</p>
           </div>
-          <div className="flex-1 rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
-            <p className="text-[11px] text-[#63637C]">Balance</p>
-            <p className="text-[14px] font-semibold text-[#F1F0F7] mt-1">{(bot.invested + bot.profit).toFixed(2)} USDT</p>
+          <div className="flex-1 rounded-2xl p-2.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+            <p className="text-[10px] text-[#63637C]">Balance</p>
+            <p className="text-[13px] font-semibold text-[#F1F0F7] mt-0.5">{(bot.invested + bot.profit).toFixed(2)} USDT</p>
           </div>
-          <div className="flex-1 rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
-            <p className="text-[11px] text-[#63637C]">Win Rate</p>
-            <p className="text-[14px] font-semibold text-[#F1F0F7] mt-1">73.33%</p>
+          <div className="flex-1 rounded-2xl p-2.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+            <p className="text-[10px] text-[#63637C]">Win Rate</p>
+            <p className="text-[13px] font-semibold text-[#F1F0F7] mt-0.5">73.33%</p>
           </div>
         </div>
         )}
 
-        <div className="flex gap-5 mb-4" style={{ borderBottom: "1px solid #A9714B" }}>
+        <div className="flex gap-4 mb-3" style={{ borderBottom: "1px solid #A9714B" }}>
           {tabs.map((t) => {
             const active = tab === t;
             return (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className="pb-2.5 text-[13px] font-medium relative"
+                className="pb-2 text-[12px] font-medium relative"
                 style={{ color: active ? "#F1F0F7" : "#63637C" }}
               >
                 {t}
@@ -1175,14 +1191,14 @@ function RunningBotScreen({ bot, onBack, onStop }) {
         </div>
 
         {tab === "Pools" && (
-          <div className="flex flex-col gap-2.5 mb-5">
+          <div className="flex flex-col gap-2 mb-3">
             {dex.pools.length === 0 && (
-              <p className="text-[12px] text-[#63637C] py-6 text-center">
+              <p className="text-[12px] text-[#63637C] py-5 text-center">
                 Belum ada pool baru terdeteksi. {dex.status.connected ? "Sedang memantau Raydium devnet..." : "Backend belum tersambung."}
               </p>
             )}
             {dex.pools.map((p) => (
-              <div key={p.signature} className="rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+              <div key={p.signature} className="rounded-2xl p-3" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
                 <p className="text-[12px] font-mono text-[#3B2A1E] truncate">{p.poolId}</p>
                 <p className="text-[11px] text-[#6B5238] mt-1">{new Date(p.time).toLocaleString()}</p>
               </div>
@@ -1191,15 +1207,15 @@ function RunningBotScreen({ bot, onBack, onStop }) {
         )}
 
         {tab === "Positions" && (
-          <div className="flex flex-col gap-3 mb-5">
-            {bot.positions.length === 0 && <p className="text-[12px] text-[#63637C] py-6 text-center">No open positions.</p>}
+          <div className="flex flex-col gap-2.5 mb-3">
+            {bot.positions.length === 0 && <p className="text-[12px] text-[#63637C] py-5 text-center">No open positions.</p>}
             {bot.positions.map((p) => (
-              <div key={p.pair} className="rounded-2xl p-4" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[14px] font-semibold text-[#F1F0F7]">{p.pair}</span>
+              <div key={p.pair} className="rounded-2xl p-3" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-[13px] font-semibold text-[#F1F0F7]">{p.pair}</span>
                   <span className="text-[11px] text-[#6E6E88]">{p.side} | {p.lev}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-3 gap-2 mb-2.5">
                   <div>
                     <p className="text-[10px] text-[#63637C]">Size</p>
                     <p className="text-[12px] text-[#D5D5E4] mt-0.5">{p.size}</p>
@@ -1213,7 +1229,7 @@ function RunningBotScreen({ bot, onBack, onStop }) {
                     <p className="text-[12px] text-[#D5D5E4] mt-0.5">{p.mark}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2.5">
                   <span className="text-[11px] text-[#63637C]">PnL (USDT)</span>
                   <span className="text-[13px] font-semibold" style={{ color: p.up ? "#2DE0A6" : "#FF5C7A" }}>
                     {p.pnl}
@@ -1221,13 +1237,13 @@ function RunningBotScreen({ bot, onBack, onStop }) {
                 </div>
                 <button
                   onClick={() => setEditingTpSl(editingTpSl === p.pair ? null : p.pair)}
-                  className="w-full py-2.5 rounded-xl text-[12px] font-medium text-[#D5D5E4]"
+                  className="w-full py-2 rounded-xl text-[12px] font-medium text-[#D5D5E4]"
                   style={{ background: "#B87847", border: "1px solid #96623D" }}
                 >
                   Take Profit / Stop Loss
                 </button>
                 {editingTpSl === p.pair && (
-                  <div className="mt-3 pt-3" style={{ borderTop: "1px solid #96623D" }}>
+                  <div className="mt-2.5 pt-2.5" style={{ borderTop: "1px solid #96623D" }}>
                     <div className="flex gap-2 mb-2">
                       <div className="flex-1">
                         <p className="text-[10px] text-[#63637C] mb-1">Take Profit %</p>

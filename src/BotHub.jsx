@@ -474,6 +474,109 @@ function BotRow({ bot, onClick }) {
   );
 }
 
+function BotIconCard({ bot, selected, onToggle }) {
+  const glow = bot.tagColor || "#7B5CFF";
+  return (
+    <button
+      onClick={onToggle}
+      className="aspect-square w-full flex flex-col items-center justify-center gap-1.5 rounded-2xl relative transition-transform active:scale-[0.96]"
+      style={{
+        background: selected ? glow : "#C68B59",
+        border: `1px solid ${selected ? glow : glow + "88"}`,
+        boxShadow: selected ? `0 0 18px -2px ${glow}cc` : `0 0 12px -4px ${glow}88`,
+      }}
+    >
+      {bot.live && (
+        <span
+          className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full"
+          style={{ background: selected ? "#fff" : "#2DE0A6" }}
+        />
+      )}
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{
+          background: selected ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.4)",
+          color: selected ? "#fff" : "#3B2A1E",
+        }}
+      >
+        <Bot size={20} />
+      </div>
+      <span
+        className="text-[10px] font-semibold text-center px-1 leading-tight truncate w-full"
+        style={{ color: selected ? "#fff" : "#3B2A1E" }}
+      >
+        {bot.name}
+      </span>
+    </button>
+  );
+}
+
+function BotInfoPanel({ bot, onOpen }) {
+  const up = bot.profit >= 0;
+  const glow = bot.tagColor || "#7B5CFF";
+  return (
+    <div
+      className="rounded-2xl p-4 mb-5 relative overflow-hidden"
+      style={{ background: "#C68B59", border: `1px solid ${glow}` }}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "rgba(255,255,255,0.4)", color: "#3B2A1E" }}
+        >
+          <Bot size={20} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-bold text-[#3B2A1E] truncate">{bot.name}</span>
+            <span
+              className="shrink-0 text-[9px] font-bold px-1.5 py-[2px] rounded tracking-wide"
+              style={{ background: "rgba(255,255,255,0.45)", color: glow, border: `1px solid ${glow}77` }}
+            >
+              {bot.tag}
+            </span>
+          </div>
+          <p className="flex items-center gap-1 text-[11px] text-[#6B5238] mt-0.5">
+            <Star size={11} className="fill-[#FFB454] text-[#FFB454]" /> {bot.rating} · {bot.users} pengguna
+          </p>
+        </div>
+        <Sparkline data={bot.spark} color={up ? "#2DE0A6" : "#FF5C7A"} w={56} h={24} />
+      </div>
+
+      <p className="text-[12px] text-[#5A4433] leading-relaxed mb-3 line-clamp-2">{bot.blurb}</p>
+
+      <div
+        className="grid grid-cols-3 rounded-xl overflow-hidden mb-3"
+        style={{ background: "rgba(255,255,255,0.35)" }}
+      >
+        <div className="flex flex-col items-center justify-center py-2 px-1" style={{ borderRight: "1px solid rgba(59,42,30,0.15)" }}>
+          <span className="text-[9px] text-[#6B5238]">Profit</span>
+          <span className="text-[13px] font-bold" style={{ color: up ? "#1FA97A" : "#D93E5C" }}>
+            {up ? "+" : ""}
+            {bot.profit}%
+          </span>
+        </div>
+        <div className="flex flex-col items-center justify-center py-2 px-1" style={{ borderRight: "1px solid rgba(59,42,30,0.15)" }}>
+          <span className="text-[9px] text-[#6B5238]">Harga</span>
+          <span className="text-[13px] font-bold text-[#3B2A1E]">${bot.price}/mo</span>
+        </div>
+        <div className="flex flex-col items-center justify-center py-2 px-1">
+          <span className="text-[9px] text-[#6B5238]">Reviews</span>
+          <span className="text-[13px] font-bold text-[#3B2A1E]">{bot.reviews}</span>
+        </div>
+      </div>
+
+      <button
+        onClick={onOpen}
+        className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-white"
+        style={{ background: glow }}
+      >
+        Lihat Detail Bot
+      </button>
+    </div>
+  );
+}
+
 function BottomNav({ active, setActive }) {
   const items = [
     { key: "home", label: "Home", icon: Home },
@@ -577,6 +680,7 @@ function PricesScreen() {
 
 function HomeScreen({ openBot }) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
   const live = useLivePrice("btcusdt");
   const liveBots = bots.map((b) =>
     b.id === "trend-pro" && live.spark && live.spark.length > 1
@@ -660,11 +764,23 @@ function HomeScreen({ openBot }) {
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-4 gap-2.5 mb-4">
         {liveBots.map((b) => (
-          <BotRow key={b.id} bot={b} onClick={() => openBot(b)} />
+          <BotIconCard
+            key={b.id}
+            bot={b}
+            selected={selectedId === b.id}
+            onToggle={() => setSelectedId((cur) => (cur === b.id ? null : b.id))}
+          />
         ))}
       </div>
+
+      {selectedId && (
+        <BotInfoPanel
+          bot={liveBots.find((b) => b.id === selectedId)}
+          onOpen={() => openBot(liveBots.find((b) => b.id === selectedId))}
+        />
+      )}
     </div>
   );
 }

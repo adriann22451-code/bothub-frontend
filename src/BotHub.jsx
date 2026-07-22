@@ -88,42 +88,65 @@ function useLivePrice(symbol = "btcusdt") {
   return state;
 }
 
-/* Live prices for a watchlist of coins — CoinGecko public API, no key needed */
+/* Live prices for a watchlist of coins — Binance public REST API, no key needed.
+   Sebelumnya pakai CoinGecko langsung dari browser: gampang kena rate-limit (429)
+   atau CORS block, dan errornya SILENT — data lama tetap tampil jadi kelihatan
+   "macet" tanpa ada log apa pun. Binance public endpoint jauh lebih longgar
+   limit-nya dan sudah dipakai di bagian lain project ini (live BTC price). */
 const WATCHLIST = [
-  { id: "bitcoin", symbol: "BTC", name: "Bitcoin" },
-  { id: "ethereum", symbol: "ETH", name: "Ethereum" },
-  { id: "binancecoin", symbol: "BNB", name: "BNB" },
-  { id: "solana", symbol: "SOL", name: "Solana" },
-  { id: "ripple", symbol: "XRP", name: "XRP" },
-  { id: "dogecoin", symbol: "DOGE", name: "Dogecoin" },
-  { id: "cardano", symbol: "ADA", name: "Cardano" },
-  { id: "chainlink", symbol: "LINK", name: "Chainlink" },
+  { symbol: "BTCUSDT", label: "BTC", name: "Bitcoin" },
+  { symbol: "ETHUSDT", label: "ETH", name: "Ethereum" },
+  { symbol: "BNBUSDT", label: "BNB", name: "BNB" },
+  { symbol: "SOLUSDT", label: "SOL", name: "Solana" },
+  { symbol: "XRPUSDT", label: "XRP", name: "XRP" },
+  { symbol: "DOGEUSDT", label: "DOGE", name: "Dogecoin" },
+  { symbol: "ADAUSDT", label: "ADA", name: "Cardano" },
+  { symbol: "LINKUSDT", label: "LINK", name: "Chainlink" },
 ];
 
 function useMultiTicker(refreshMs = 20000) {
   const [tickers, setTickers] = useState({});
   const [connected, setConnected] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastError, setLastError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    const ids = WATCHLIST.map((c) => c.id).join(",");
+    const symbolsParam = encodeURIComponent(JSON.stringify(WATCHLIST.map((c) => c.symbol)));
 
     async function fetchPrices() {
       try {
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
+          `https://api.binance.com/api/v3/ticker/24hr?symbols=${symbolsParam}`
         );
+        if (!res.ok) throw new Error(`Binance API status ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
         const next = {};
         WATCHLIST.forEach((c) => {
-          const d = data[c.id];
-          if (d) next[c.id] = { ...c, price: d.usd, changePct: d.usd_24h_change || 0 };
+          const d = data.find((x) => x.symbol === c.symbol);
+          if (d) {
+            next[c.symbol] = {
+              id: c.symbol,
+              symbol: c.label,
+              name: c.name,
+              price: parseFloat(d.lastPrice),
+              changePct: parseFloat(d.priceChangePercent),
+            };
+          }
         });
         setTickers(next);
         setConnected(true);
-      } catch {
-        if (!cancelled) setConnected(false);
+        setLastUpdated(Date.now());
+        setLastError(null);
+      } catch (err) {
+        // Dulu di sini errornya ditelan tanpa log — sekarang dicatat ke console
+        // supaya kalau macet lagi, penyebabnya (rate limit/CORS/network) kelihatan.
+        console.error("[Prices] Gagal ambil harga dari Binance:", err.message);
+        if (!cancelled) {
+          setConnected(false);
+          setLastError(err.message);
+        }
       }
     }
 
@@ -135,7 +158,7 @@ function useMultiTicker(refreshMs = 20000) {
     };
   }, [refreshMs]);
 
-  return { tickers, connected };
+  return { tickers, connected, lastUpdated, lastError };
 }
 
 /* Status & riwayat DEX Sniper Pro dari backend (Solana devnet) — polling sederhana */
@@ -623,22 +646,28 @@ const sampleNotifications = [
 ];
 
 function PricesScreen() {
-  const { tickers, connected } = useMultiTicker();
-  const rows = WATCHLIST.map((c) => tickers[c.id]).filter(Boolean);
+  const { tickers, connected, lastError } = useMultiTicker();
+  const rows = WATCHLIST.map((c) => tickers[c.symbol]).filter(Boolean);
 
   return (
     <div className="flex-1 overflow-y-auto px-5 pb-6">
       <div className="flex items-center justify-between pt-4 pb-4">
         <h1 className="text-[19px] font-bold text-[#F1F0F7]">Prices</h1>
-        {connected && (
+        {connected ? (
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-[2px] rounded" style={{ background: "#2DE0A622", color: "#2DE0A6" }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#2DE0A6" }} /> LIVE
           </span>
-        )}
+        ) : rows.length > 0 ? (
+          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-[2px] rounded" style={{ background: "#FF5C7A22", color: "#FF5C7A" }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#FF5C7A" }} /> GAGAL UPDATE
+          </span>
+        ) : null}
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-center text-[13px] text-[#63637C] py-16">Menyambungkan ke data harga live...</p>
+        <p className="text-center text-[13px] text-[#63637C] py-16">
+          {lastError ? "Gagal menyambung ke data harga live." : "Menyambungkan ke data harga live..."}
+        </p>
       ) : (
         <div className="flex flex-col gap-2.5">
           {rows.map((t) => {
@@ -1445,9 +1474,46 @@ export default function BotHubApp() {
   const [running, setRunning] = useState(initialRunningBots);
   const [stopped, setStopped] = useState([]);
   const [completed, setCompleted] = useState([]);
+  const live = useLivePrice("btcusdt"); // dipakai buat sinkronkan mark price/PnL bot yang trade BTC/USDT
+
+  // Setiap ada tick harga baru dari Binance, update mark price & PnL semua posisi
+  // BTC/USDT yang lagi jalan (dulu ini cuma di-set sekali waktu bot start, terus diam).
+  useEffect(() => {
+    if (live.price == null) return;
+    setRunning((prev) =>
+      prev.map((b) => {
+        if (!b.positions || b.positions.length === 0) return b;
+        const newPositions = b.positions.map((p) => {
+          if (p.pair !== "BTC/USDT") return p;
+          const entryNum = parseFloat(String(p.entry).replace(/,/g, ""));
+          const sizeNum = parseFloat(String(p.size));
+          if (!entryNum || !sizeNum) return p;
+          const dir = p.side === "Long" ? 1 : -1;
+          const pnlUsd = (live.price - entryNum) * sizeNum * dir;
+          const pnlPct = (pnlUsd / (entryNum * sizeNum)) * 100;
+          return {
+            ...p,
+            mark: live.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            pnl: `${pnlUsd >= 0 ? "+" : ""}${pnlUsd.toFixed(2)} (${pnlUsd >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%)`,
+            up: pnlUsd >= 0,
+          };
+        });
+        const totalPnl = newPositions.reduce((sum, p) => {
+          const n = parseFloat(String(p.pnl).split(" ")[0].replace(/[+,]/g, ""));
+          return sum + (isNaN(n) ? 0 : n);
+        }, 0);
+        return {
+          ...b,
+          positions: newPositions,
+          profit: b.id === "trend-pro" ? Number(totalPnl.toFixed(2)) : b.profit,
+          profitPct: b.id === "trend-pro" && b.invested ? Number(((totalPnl / b.invested) * 100).toFixed(2)) : b.profitPct,
+        };
+      })
+    );
+  }, [live.price]);
 
   const openBot = (bot) => setView({ type: "botDetail", data: bot });
-  const openRunning = (bot) => setView({ type: "running", data: bot });
+  const openRunning = (bot) => setView({ type: "running", data: { id: bot.id } });
   const closeView = () => setView(null);
 
   const changeTab = (t) => {
@@ -1468,7 +1534,21 @@ export default function BotHubApp() {
       invested: bot.price * 10,
       plan: chosenPlan.key,
       spark: new Array(12).fill(10),
-      positions: [],
+      positions:
+        bot.id === "trend-pro" && live.price != null
+          ? [
+              {
+                pair: "BTC/USDT",
+                side: "Long",
+                lev: "10x",
+                size: "0.012 BTC",
+                entry: live.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                mark: live.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                pnl: "+0.00 (+0.00%)",
+                up: true,
+              },
+            ]
+          : [],
     };
     setRunning((r) => [newEntry, ...r]);
     setStopped((s) => s.filter((b) => b.id !== bot.id));
@@ -1511,7 +1591,8 @@ export default function BotHubApp() {
       />
     );
   } else if (view?.type === "running") {
-    content = <RunningBotScreen bot={view.data} onBack={closeView} onStop={stopBot} />;
+    const liveBot = running.find((r) => r.id === view.data.id) || view.data;
+    content = <RunningBotScreen bot={liveBot} onBack={closeView} onStop={stopBot} />;
   } else if (tab === "home") {
     content = <HomeScreen openBot={openBot} />;
   } else if (tab === "prices") {

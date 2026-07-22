@@ -18,6 +18,9 @@ import {
    muted   #8A8AA3
 --------------------------------------------------- */
 
+/* URL backend BotHub (server.js). Ganti ke URL deploy (mis. Railway) kalau sudah live. */
+const BACKEND_URL = "http://localhost:3001";
+
 /* Basic indicator math — no ML, just standard technical formulas */
 function calcEMA(prices, period) {
   if (prices.length < period) return null;
@@ -135,6 +138,56 @@ function useMultiTicker(refreshMs = 20000) {
   return { tickers, connected };
 }
 
+/* Status & riwayat DEX Sniper Pro dari backend (Solana devnet) — polling sederhana */
+function useDexSniper(active) {
+  const [status, setStatus] = useState({ connected: false, walletReady: false, walletAddress: null, balanceSol: null, snipeEnabled: false, poolsDetected: 0, lastPool: null });
+  const [trades, setTrades] = useState([]);
+  const [pools, setPools] = useState([]);
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const [statusRes, tradesRes, poolsRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/dex/status`),
+          fetch(`${BACKEND_URL}/dex/trades`),
+          fetch(`${BACKEND_URL}/dex/pools`),
+        ]);
+        const statusData = await statusRes.json();
+        const tradesData = await tradesRes.json();
+        const poolsData = await poolsRes.json();
+        if (cancelled) return;
+        setStatus({ ...statusData, connected: true });
+        setTrades(tradesData);
+        setPools(poolsData);
+      } catch {
+        if (!cancelled) setStatus((s) => ({ ...s, connected: false }));
+      }
+    }
+
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [active]);
+
+  async function setSnipeEnabled(on) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/dex/snipe/${on ? "on" : "off"}`, { method: "POST" });
+      const data = await res.json();
+      setStatus((s) => ({ ...s, snipeEnabled: data.snipeEnabled }));
+    } catch {
+      // backend nggak nyala / nggak bisa diakses — biarkan status apa adanya
+    }
+  }
+
+  return { status, trades, pools, setSnipeEnabled };
+}
+
 const bots = [
   {
     id: "trend-pro",
@@ -166,6 +219,7 @@ const bots = [
     name: "DEX Sniper Pro",
     tag: "DEX",
     tagColor: "#2DE0A6",
+    live: true,
     blurb: "Catches new token listings the moment liquidity lands.",
     rating: 4.9,
     reviews: "856",
@@ -617,6 +671,8 @@ function HomeScreen({ openBot }) {
 
 function BotDetailScreen({ bot, onBack, onSubscribe, isRunning }) {
   const [subscribed, setSubscribed] = useState(false);
+  const isDex = bot.id === "dex-sniper";
+  const dex = useDexSniper(isDex);
   const d = bot.detail;
   const rows = [
     ["Timeframe", d.timeframe],
@@ -642,6 +698,21 @@ function BotDetailScreen({ bot, onBack, onSubscribe, isRunning }) {
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4" style={{ background: "#FFB45422", border: "1px dashed #FFB454" }}>
             <span className="text-[11px] font-semibold" style={{ color: "#FFB454" }}>
               ⚠ Data simulasi — belum tersambung ke harga/order real
+            </span>
+          </div>
+        )}
+        {isDex && (
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4"
+            style={{
+              background: dex.status.connected ? "#2DE0A622" : "#FFB45422",
+              border: `1px dashed ${dex.status.connected ? "#2DE0A6" : "#FFB454"}`,
+            }}
+          >
+            <span className="text-[11px] font-semibold" style={{ color: dex.status.connected ? "#2DE0A6" : "#FFB454" }}>
+              {dex.status.connected
+                ? `⚡ Live · Solana Devnet · ${dex.status.balanceSol != null ? dex.status.balanceSol.toFixed(3) + " SOL" : "..."}`
+                : "⚠ Backend belum terhubung — jalankan server DEX Sniper dulu (lihat README)"}
             </span>
           </div>
         )}
@@ -846,8 +917,9 @@ function MyBotsScreen({ openRunning, running, stopped, completed, onStop, onRest
 }
 
 function RunningBotScreen({ bot, onBack, onStop }) {
-  const [tab, setTab] = useState("Positions");
-  const tabs = ["Positions", "Trades", "Overview", "Settings"];
+  const isDex = bot.id === "dex-sniper";
+  const [tab, setTab] = useState(isDex ? "Pools" : "Positions");
+  const tabs = isDex ? ["Pools", "Trades", "Overview"] : ["Positions", "Trades", "Overview", "Settings"];
   const [editingTpSl, setEditingTpSl] = useState(null);
   const [tpValue, setTpValue] = useState("20");
   const [slValue, setSlValue] = useState("8");
@@ -855,6 +927,7 @@ function RunningBotScreen({ bot, onBack, onStop }) {
   const [autoReinvest, setAutoReinvest] = useState(true);
   const [notifyOnClose, setNotifyOnClose] = useState(true);
   const meta = bots.find((b) => b.id === bot.id);
+  const dex = useDexSniper(isDex);
 
   const sampleTrades = [
     { pair: "BTC/USDT", side: "Long", result: "+11.16 USDT", time: "2h ago", up: true },
@@ -872,21 +945,54 @@ function RunningBotScreen({ bot, onBack, onStop }) {
           <span className="text-[12px] text-[#8A8AA3]">{bot.venue}</span>
         </div>
 
-        <div className="rounded-2xl p-4 mb-4" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
-          <p className="text-[12px] text-[#8A8AA3] mb-1">Total Profit</p>
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[24px] font-bold" style={{ color: "#2DE0A6" }}>
-                +{bot.profit} <span className="text-[14px] font-medium">USDT</span>
-              </p>
-              <p className="text-[12px] font-medium mt-0.5" style={{ color: "#2DE0A6" }}>
-                (+{bot.profitPct}%)
-              </p>
+        {isDex ? (
+          <div className="rounded-2xl p-4 mb-4" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[12px] text-[#8A8AA3]">Status Backend</p>
+              <span
+                className="text-[10px] font-bold px-2 py-[3px] rounded-full"
+                style={{ background: dex.status.connected ? "#2DE0A622" : "#FF5C7A22", color: dex.status.connected ? "#2DE0A6" : "#FF5C7A" }}
+              >
+                {dex.status.connected ? "TERSAMBUNG" : "TIDAK TERSAMBUNG"}
+              </span>
             </div>
-            <Sparkline data={bot.spark} color="#2DE0A6" w={130} h={50} />
+            <p className="text-[13px] text-[#3B2A1E] mb-0.5">
+              Wallet: <span className="font-mono">{dex.status.walletAddress ? `${dex.status.walletAddress.slice(0, 6)}...${dex.status.walletAddress.slice(-4)}` : "—"}</span>
+            </p>
+            <p className="text-[13px] font-semibold text-[#3B2A1E] mb-3">
+              Saldo: {dex.status.balanceSol != null ? `${dex.status.balanceSol.toFixed(4)} SOL (devnet)` : "—"}
+            </p>
+            <button
+              onClick={() => dex.setSnipeEnabled(!dex.status.snipeEnabled)}
+              disabled={!dex.status.connected}
+              className="w-full py-3 rounded-xl text-[13px] font-semibold"
+              style={{
+                background: dex.status.snipeEnabled ? "#3A1420" : "#2DE0A6",
+                color: dex.status.snipeEnabled ? "#FF5C7A" : "#0B2E22",
+                opacity: dex.status.connected ? 1 : 0.5,
+              }}
+            >
+              {dex.status.snipeEnabled ? "Matikan Snipe Otomatis" : "Nyalakan Snipe Otomatis"}
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl p-4 mb-4" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+            <p className="text-[12px] text-[#8A8AA3] mb-1">Total Profit</p>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[24px] font-bold" style={{ color: "#2DE0A6" }}>
+                  +{bot.profit} <span className="text-[14px] font-medium">USDT</span>
+                </p>
+                <p className="text-[12px] font-medium mt-0.5" style={{ color: "#2DE0A6" }}>
+                  (+{bot.profitPct}%)
+                </p>
+              </div>
+              <Sparkline data={bot.spark} color="#2DE0A6" w={130} h={50} />
+            </div>
+          </div>
+        )}
 
+        {!isDex && (
         <div className="flex gap-3 mb-5">
           <div className="flex-1 rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
             <p className="text-[11px] text-[#63637C]">Invested</p>
@@ -901,6 +1007,7 @@ function RunningBotScreen({ bot, onBack, onStop }) {
             <p className="text-[14px] font-semibold text-[#F1F0F7] mt-1">73.33%</p>
           </div>
         </div>
+        )}
 
         <div className="flex gap-5 mb-4" style={{ borderBottom: "1px solid #A9714B" }}>
           {tabs.map((t) => {
@@ -918,6 +1025,22 @@ function RunningBotScreen({ bot, onBack, onStop }) {
             );
           })}
         </div>
+
+        {tab === "Pools" && (
+          <div className="flex flex-col gap-2.5 mb-5">
+            {dex.pools.length === 0 && (
+              <p className="text-[12px] text-[#63637C] py-6 text-center">
+                Belum ada pool baru terdeteksi. {dex.status.connected ? "Sedang memantau Raydium devnet..." : "Backend belum tersambung."}
+              </p>
+            )}
+            {dex.pools.map((p) => (
+              <div key={p.signature} className="rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+                <p className="text-[12px] font-mono text-[#3B2A1E] truncate">{p.poolId}</p>
+                <p className="text-[11px] text-[#6B5238] mt-1">{new Date(p.time).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {tab === "Positions" && (
           <div className="flex flex-col gap-3 mb-5">
@@ -999,7 +1122,30 @@ function RunningBotScreen({ bot, onBack, onStop }) {
             ))}
           </div>
         )}
-        {tab === "Trades" && (
+        {tab === "Trades" && isDex && (
+          <div className="flex flex-col gap-2.5 mb-5">
+            {dex.trades.length === 0 && <p className="text-[12px] text-[#63637C] py-6 text-center">Belum ada riwayat snipe.</p>}
+            {dex.trades.map((t, i) => (
+              <div key={i} className="rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span
+                    className="text-[10px] font-bold px-2 py-[2px] rounded"
+                    style={{
+                      background: t.status === "SNIPED" ? "#2DE0A622" : t.status === "FAILED" ? "#FF5C7A22" : "#8A8AA322",
+                      color: t.status === "SNIPED" ? "#2DE0A6" : t.status === "FAILED" ? "#FF5C7A" : "#6B5238",
+                    }}
+                  >
+                    {t.status}
+                  </span>
+                  <span className="text-[11px] text-[#6B5238]">{new Date(t.time).toLocaleTimeString()}</span>
+                </div>
+                <p className="text-[11px] font-mono text-[#3B2A1E] truncate">{t.poolId}</p>
+                {t.detail && <p className="text-[11px] text-[#6B5238] mt-1">{t.detail}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+        {tab === "Trades" && !isDex && (
           <div className="flex flex-col gap-2.5 mb-5">
             {sampleTrades.map((t, i) => (
               <div key={i} className="flex items-center justify-between rounded-2xl p-3.5" style={{ background: "#C68B59", border: "1px solid #A9714B" }}>
